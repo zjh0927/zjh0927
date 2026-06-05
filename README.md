@@ -1,11 +1,14 @@
 ## Hi there 👋
 基于nav2框架的机器人自主避障越障避高温导航系统
+
 -全局规划器：navfn
+
 -局部控制器：teb改进版
 
 -高温感知层：temp_heat_nav2/TemperatureLayer
 
 -时空体素层：spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer
+
 -拱门（可穿越）清除层：nav2_archclear_plus_layer::ArchClearPlusLayer
 <!--
 **zjh0927/zjh0927** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
