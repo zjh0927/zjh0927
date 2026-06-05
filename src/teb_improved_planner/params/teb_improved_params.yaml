@@ -1,0 +1,196 @@
+# ============================================================
+# 改进版 TEB 局部规划器 — Nav2 Controller 参数
+# 包名: teb_improved_planner (独立包，不冲突原版 teb_local_planner)
+# 插件: teb_improved_planner::TebImprovedPlannerROS
+# ============================================================
+# 新增约束（相比官方原版）：
+#   - EdgeSmoothness  (平滑度) : 惩罚朝向突变，抑制 zigzag
+#   - EdgeCurvature   (曲率)   : 惩罚超出 min_turning_radius 的转弯
+# 使用方法：
+#   在 nav2_params.yaml 中 controller_server 段引用此文件，
+#   或在 launch 中用 params_file 参数加载。
+#   plugin: "teb_improved_planner::TebImprovedPlannerROS"
+# ============================================================
+
+controller_server:
+  ros__parameters:
+    controller_plugin_types: ["teb_improved_planner::TebImprovedPlannerROS"]
+    controller_plugins: ["FollowPath"]
+
+    FollowPath:
+      plugin: teb_improved_planner::TebImprovedPlannerROS
+
+      # ========== 轨迹相关 ==========
+
+      teb_autosize: 1.0               # 自动调整轨迹采样点数（1.0=开启，0.0=关闭）
+      dt_ref: 0.3                      # 期望时间分辨率 [s]
+      dt_hysteresis: 0.1               # 自动调整滞后量 [s]
+      min_samples: 3                   # 最小采样点数
+      max_samples: 500                 # 最大采样点数
+
+      global_plan_overwrite_orientation: True   # 用路径方向覆写全局路径朝向
+      allow_init_with_backwards_motion: False   # 初始轨迹是否可含后退
+      global_plan_viapoint_sep: -0.1            # via-point 最小间距 [m]；负值=禁用
+      via_points_ordered: False
+      max_global_plan_lookahead_dist: 3.0       # 全局路径前瞻距离 [m]
+      global_plan_prune_distance: 1.0           # 裁掉后方路点的距离 [m]
+      exact_arc_length: False
+
+      force_reinit_new_goal_dist: 1.0           # 目标位移超过此值则重置轨迹 [m]
+      force_reinit_new_goal_angular: 0.78       # 目标朝向变化超过此值则重置 [rad]
+      feasibility_check_no_poses: 5             # 检查前几个位姿的可行性
+      feasibility_check_lookahead_distance: -1.0 # 向前检查多远；-1=全部
+      control_look_ahead_poses: 1               # 用第几个预测位姿计算速度
+      prevent_look_ahead_poses_near_goal: 0
+
+      publish_feedback: False
+
+      # ========== 机器人运动学 ==========
+
+      max_vel_x: 3.0                  # 最大前进速度 [m/s]
+      max_vel_x_backwards: 1.0        # 最大后退速度 [m/s]
+      max_vel_y: 0.0                  # 最大横向速度（非全向=0）
+      max_vel_trans: 0.4              # 合成平移速度上限（差动车设 0 忽略）
+      max_vel_theta: 0.3              # 最大角速度 [rad/s]
+
+      acc_lim_x: 0.5                  # 最大线加速度 [m/s²]
+      acc_lim_y: 0.5
+      acc_lim_theta: 0.5              # 最大角加速度 [rad/s²]
+
+      min_turning_radius: 0.0         # ★ 最小转弯半径 [m]；>0 则激活曲率约束
+      wheelbase: 1.0                  # 轴距 [m]（cmd_angle_instead_rotvel 时用）
+      cmd_angle_instead_rotvel: False # 角速度转转向角（阿克曼车用）
+      is_footprint_dynamic: False
+      use_proportional_saturation: False
+
+      # ========== 机器人脚印模型 ==========
+      footprint_model:
+        type: "point"                 # point / circular / line / two_circles / polygon
+        # radius: 0.17                # circular 时用
+        # line_start: [-0.15, 0.0]
+        # line_end: [0.15, 0.0]
+
+      # ========== 目标容差 ==========
+
+      xy_goal_tolerance: 0.1          # 位置容差 [m]
+      yaw_goal_tolerance: 0.2         # 朝向容差 [rad]
+      free_goal_vel: False            # 到达时是否允许非零末速度
+      trans_stopped_vel: 0.1          # 平移速度低于此视为停止 [m/s]
+      theta_stopped_vel: 0.1          # 旋转速度低于此视为停止 [rad/s]
+      complete_global_plan: True      # 必须走完全局路径
+
+      # ========== 障碍物 ==========
+
+      min_obstacle_dist: 0.45         # 期望最小障碍物间距 [m]
+      inflation_dist: 0.6             # 膨胀距离 [m]（需 > min_obstacle_dist）
+      include_costmap_obstacles: True # 从 costmap 提取障碍物
+      costmap_obstacles_behind_robot_dist: 1.5  # 忽略后方多远的障碍物 [m]
+      obstacle_poses_affected: 30     # 每个障碍物关联的轨迹位姿数
+
+      legacy_obstacle_association: False
+      obstacle_association_force_inclusion_factor: 1.5
+      obstacle_association_cutoff_factor: 5.0
+
+      dynamic_obstacle_inflation_dist: 0.6
+      include_dynamic_obstacles: False       # 动态障碍物预测
+      obstacle_proximity_ratio_max_vel: 1.0
+      obstacle_proximity_lower_bound: 0.0
+      obstacle_proximity_upper_bound: 0.5
+
+      costmap_converter_plugin: "costmap_converter::CostmapToPolygonsDBSMCCH"
+      costmap_converter_spin_thread: True
+      costmap_converter_rate: 5
+
+      # ========== 优化参数 ==========
+
+      no_inner_iterations: 5          # 每次外循环中 g2o 迭代次数
+      no_outer_iterations: 4          # 外循环次数
+      optimization_activate: True
+      optimization_verbose: False
+      penalty_epsilon: 0.05           # 硬约束近似安全裕度
+      weight_adapt_factor: 2.0        # 外循环权重倍增系数
+      obstacle_cost_exponent: 1.0     # 障碍物代价非线性指数（1=线性）
+
+      # -- 速度约束权重 --
+      weight_max_vel_x: 2.0
+      weight_max_vel_y: 2.0
+      weight_max_vel_theta: 1.0
+
+      # -- 加速度约束权重 --
+      weight_acc_lim_x: 1.0
+      weight_acc_lim_y: 1.0
+      weight_acc_lim_theta: 1.0
+
+      # -- 运动学约束权重 --
+      weight_kinematics_nh: 1000.0          # 非完整约束
+      weight_kinematics_forward_drive: 1.0  # 前向偏好
+      weight_kinematics_turning_radius: 1.0 # 最小转弯半径约束
+
+      # -- 目标函数权重 --
+      weight_optimaltime: 1.0         # 时间最优（必须 >0）
+      weight_shortest_path: 0.0       # 最短路径
+
+      # ★ 改进约束权重 ★
+      weight_smoothness: 0.5          # 平滑度：抑制朝向突变/zigzag
+      weight_curvature: 0.5           # 曲率：需 min_turning_radius>0 才生效
+
+      # -- 障碍物相关权重 --
+      weight_obstacle: 50.0           # 静态障碍物避障
+      weight_inflation: 0.1           # 膨胀区代价
+      weight_dynamic_obstacle: 50.0   # 动态障碍物避障
+      weight_dynamic_obstacle_inflation: 0.1
+
+      # -- 其他权重 --
+      weight_velocity_obstacle_ratio: 0.0
+      weight_viapoint: 1.0
+      weight_prefer_rotdir: 50.0       # 震荡恢复时偏好转向
+
+      # ========== 同伦类规划 (HCP) ==========
+
+      enable_homotopy_class_planning: False   # 启用同伦类规划（计算量大）
+      enable_multithreading: True
+      simple_exploration: False
+      max_number_classes: 5
+      max_number_plans_in_current_class: 1
+      selection_cost_hysteresis: 1.0
+      selection_prefer_initial_plan: 0.95
+      selection_obst_cost_scale: 2.0
+      selection_viapoint_cost_scale: 1.0
+      selection_alternative_time_cost: False
+      selection_dropping_probability: 0.0
+      switching_blocking_period: 0.0
+
+      roadmap_graph_no_samples: 15
+      roadmap_graph_area_width: 5.0
+      roadmap_graph_area_length_scale: 1.0
+      h_signature_prescaler: 1.0
+      h_signature_threshold: 0.1
+      obstacle_heading_threshold: 0.45
+      obstacle_keypoint_offset: 0.1
+
+      viapoints_all_candidates: True
+      visualize_hc_graph: False
+      visualize_with_time_as_z_axis_scale: 0.0
+
+      delete_detours_backwards: True
+      detours_orientation_tolerance: 0.2
+      length_start_orientation_vector: 1.0
+      max_ratio_detours_duration_best_duration: 3.0
+
+      # ========== 恢复行为 ==========
+
+      shrink_horizon_backup: True              # 规划失败时缩短视界
+      shrink_horizon_min_duration: 10.0
+
+      oscillation_recovery: True               # ★ 震荡检测与恢复
+      oscillation_v_eps: 0.1
+      oscillation_omega_eps: 0.1
+      oscillation_recovery_min_duration: 10.0
+      oscillation_filter_duration: 10.0
+
+      divergence_detection_enable: False
+      divergence_detection_max_chi_squared: 10.0
+
+      # ========== 其他 ==========
+      odom_topic: "odom"
+      map_frame: "map"

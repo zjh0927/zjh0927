@@ -1,0 +1,9 @@
+<library path="teb_improved_planner">
+	<class type="teb_improved_planner::TebImprovedPlannerROS" base_class_type="nav2_core::Controller">
+		<description>
+			【改进版】TEB 局部规划器，新增曲率约束与平滑度约束。
+			基于 teb_local_planner (Christoph Rösmann, TU Dortmund)。
+		</description>
+	</class>
+</library>
+
